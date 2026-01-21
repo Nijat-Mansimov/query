@@ -1,9 +1,9 @@
 // src/routes/authRoutes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
-const authController = require('../controllers/authController');
-const { authenticate } = require('../middleware/auth');
+const { body, validationResult } = require("express-validator");
+const authController = require("../controllers/authController");
+const { authenticate } = require("../middleware/auth");
 
 // Validation middleware
 const validate = (req, res, next) => {
@@ -11,8 +11,8 @@ const validate = (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
-      message: 'Validation failed',
-      errors: errors.array()
+      message: "Validation failed",
+      errors: errors.array(),
     });
   }
   next();
@@ -23,33 +23,30 @@ const validate = (req, res, next) => {
  * @desc    Register new user
  * @access  Public
  */
-router.post('/register',
+router.post(
+  "/register",
   [
-    body('email')
+    body("email")
       .isEmail()
       .normalizeEmail()
-      .withMessage('Valid email is required'),
-    body('password')
+      .withMessage("Valid email is required"),
+    body("password")
       .isLength({ min: 8 })
-      .withMessage('Password must be at least 8 characters')
+      .withMessage("Password must be at least 8 characters")
       .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage('Password must contain uppercase, lowercase, and number'),
-    body('username')
+      .withMessage("Password must contain uppercase, lowercase, and number"),
+    body("username")
       .isLength({ min: 3, max: 30 })
-      .withMessage('Username must be 3-30 characters')
+      .withMessage("Username must be 3-30 characters")
       .matches(/^[a-zA-Z0-9_-]+$/)
-      .withMessage('Username can only contain letters, numbers, underscore and dash'),
-    body('firstName')
-      .optional()
-      .trim()
-      .isLength({ max: 50 }),
-    body('lastName')
-      .optional()
-      .trim()
-      .isLength({ max: 50 })
+      .withMessage(
+        "Username can only contain letters, numbers, underscore and dash",
+      ),
+    body("firstName").optional().trim().isLength({ max: 50 }),
+    body("lastName").optional().trim().isLength({ max: 50 }),
   ],
   validate,
-  authController.register
+  authController.register,
 );
 
 /**
@@ -57,18 +54,17 @@ router.post('/register',
  * @desc    Login user
  * @access  Public
  */
-router.post('/login',
+router.post(
+  "/login",
   [
-    body('email')
+    body("email")
       .isEmail()
       .normalizeEmail()
-      .withMessage('Valid email is required'),
-    body('password')
-      .notEmpty()
-      .withMessage('Password is required')
+      .withMessage("Valid email is required"),
+    body("password").notEmpty().withMessage("Password is required"),
   ],
   validate,
-  authController.login
+  authController.login,
 );
 
 /**
@@ -76,17 +72,16 @@ router.post('/login',
  * @desc    Verify 2FA token and complete login
  * @access  Public
  */
-router.post('/verify-2fa',
+router.post(
+  "/verify-2fa",
   [
-    body('userId')
-      .notEmpty()
-      .withMessage('User ID is required'),
-    body('token')
+    body("userId").notEmpty().withMessage("User ID is required"),
+    body("token")
       .isLength({ min: 6, max: 6 })
-      .withMessage('Invalid 2FA token format')
+      .withMessage("Invalid 2FA token format"),
   ],
   validate,
-  authController.verify2FA
+  authController.verify2FA,
 );
 
 /**
@@ -94,14 +89,11 @@ router.post('/verify-2fa',
  * @desc    Refresh access token
  * @access  Public
  */
-router.post('/refresh',
-  [
-    body('refreshToken')
-      .notEmpty()
-      .withMessage('Refresh token is required')
-  ],
+router.post(
+  "/refresh",
+  [body("refreshToken").notEmpty().withMessage("Refresh token is required")],
   validate,
-  authController.refreshToken
+  authController.refreshToken,
 );
 
 /**
@@ -109,34 +101,30 @@ router.post('/refresh',
  * @desc    Logout user
  * @access  Private
  */
-router.post('/logout',
-  authenticate,
-  authController.logout
-);
+router.post("/logout", authenticate, authController.logout);
 
 /**
  * @route   GET /api/v1/auth/verify-email/:token
  * @desc    Verify email address
  * @access  Public
  */
-router.get('/verify-email/:token',
-  authController.verifyEmail
-);
+router.get("/verify-email/:token", authController.verifyEmail);
 
 /**
  * @route   POST /api/v1/auth/forgot-password
  * @desc    Request password reset
  * @access  Public
  */
-router.post('/forgot-password',
+router.post(
+  "/forgot-password",
   [
-    body('email')
+    body("email")
       .isEmail()
       .normalizeEmail()
-      .withMessage('Valid email is required')
+      .withMessage("Valid email is required"),
   ],
   validate,
-  authController.forgotPassword
+  authController.forgotPassword,
 );
 
 /**
@@ -144,16 +132,17 @@ router.post('/forgot-password',
  * @desc    Reset password with token
  * @access  Public
  */
-router.post('/reset-password/:token',
+router.post(
+  "/reset-password/:token",
   [
-    body('password')
+    body("password")
       .isLength({ min: 8 })
-      .withMessage('Password must be at least 8 characters')
+      .withMessage("Password must be at least 8 characters")
       .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage('Password must contain uppercase, lowercase, and number')
+      .withMessage("Password must contain uppercase, lowercase, and number"),
   ],
   validate,
-  authController.resetPassword
+  authController.resetPassword,
 );
 
 /**
@@ -161,33 +150,30 @@ router.post('/reset-password/:token',
  * @desc    Get current user
  * @access  Private
  */
-router.get('/me',
-  authenticate,
-  async (req, res) => {
-    try {
-      res.json({
-        success: true,
-        data: {
-          user: {
-            id: req.user._id,
-            email: req.user.email,
-            username: req.user.username,
-            role: req.user.role,
-            emailVerified: req.user.emailVerified,
-            profile: req.user.profile,
-            statistics: req.user.statistics,
-            createdAt: req.user.createdAt
-          }
-        }
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Failed to fetch user',
-        error: error.message
-      });
-    }
+router.get("/me", authenticate, async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        user: {
+          id: req.user._id,
+          email: req.user.email,
+          username: req.user.username,
+          role: req.user.role,
+          emailVerified: req.user.emailVerified,
+          profile: req.user.profile,
+          statistics: req.user.statistics,
+          createdAt: req.user.createdAt,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch user",
+      error: error.message,
+    });
   }
-);
+});
 
 module.exports = router;

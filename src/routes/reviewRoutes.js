@@ -1,98 +1,112 @@
 // src/routes/reviewRoutes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { authenticate, optionalAuth } = require('../middleware/auth');
+const { body, validationResult } = require("express-validator");
+const reviewController = require("../controllers/reviewController");
+const { authenticate, optionalAuth } = require("../middleware/auth");
 
-/**
- * Review routes - Rule rating and feedback system
- * 
- * TODO: Implement review functionality
- * - Create review
- * - Update review
- * - Delete review
- * - Mark review as helpful
- * - Report review
- */
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+  next();
+};
 
 /**
  * @route   GET /api/v1/reviews/rule/:ruleId
  * @desc    Get all reviews for a rule
  * @access  Public
- * @status  NOT IMPLEMENTED
  */
-router.get('/rule/:ruleId',
-  optionalAuth,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Review API not implemented yet',
-      note: 'Review system will be added in future releases'
-    });
-  }
-);
+router.get("/rule/:ruleId", optionalAuth, reviewController.getReviewsByRule);
+
+/**
+ * @route   GET /api/v1/reviews/:id
+ * @desc    Get single review
+ * @access  Public
+ */
+router.get("/:id", reviewController.getReview);
+
+/**
+ * @route   GET /api/v1/reviews/user/:username
+ * @desc    Get user's reviews
+ * @access  Public
+ */
+router.get("/user/:username", reviewController.getUserReviews);
 
 /**
  * @route   POST /api/v1/reviews
  * @desc    Create a review for a rule
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.post('/',
+router.post(
+  "/",
   authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Review creation not implemented yet'
-    });
-  }
+  [
+    body("ruleId").isMongoId().withMessage("Valid rule ID is required"),
+    body("rating")
+      .isInt({ min: 1, max: 5 })
+      .withMessage("Rating must be between 1 and 5"),
+    body("comment").optional().trim().isLength({ max: 1000 }),
+  ],
+  validate,
+  reviewController.createReview,
 );
 
 /**
  * @route   PUT /api/v1/reviews/:id
  * @desc    Update own review
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.put('/:id',
+router.put(
+  "/:id",
   authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Review update not implemented yet'
-    });
-  }
+  [
+    body("rating")
+      .optional()
+      .isInt({ min: 1, max: 5 })
+      .withMessage("Rating must be between 1 and 5"),
+    body("comment").optional().trim().isLength({ max: 1000 }),
+  ],
+  validate,
+  reviewController.updateReview,
 );
 
 /**
  * @route   DELETE /api/v1/reviews/:id
  * @desc    Delete own review
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.delete('/:id',
-  authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Review deletion not implemented yet'
-    });
-  }
-);
+router.delete("/:id", authenticate, reviewController.deleteReview);
 
 /**
  * @route   POST /api/v1/reviews/:id/helpful
  * @desc    Mark review as helpful
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.post('/:id/helpful',
+router.post(
+  "/:id/helpful",
   authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Review helpful feature not implemented yet'
-    });
-  }
+  [body("helpful").isBoolean().withMessage("helpful must be boolean")],
+  validate,
+  reviewController.markHelpful,
+);
+
+/**
+ * @route   POST /api/v1/reviews/:id/report
+ * @desc    Report review
+ * @access  Private
+ */
+router.post(
+  "/:id/report",
+  authenticate,
+  [body("reason").trim().notEmpty().withMessage("Report reason is required")],
+  validate,
+  reviewController.reportReview,
 );
 
 module.exports = router;

@@ -1,8 +1,8 @@
 // src/controllers/ruleController.js
-const Rule = require('../models/Rule');
-const RuleVersion = require('../models/RuleVersion');
-const Purchase = require('../models/Purchase');
-const Activity = require('../models/Activity');
+const Rule = require("../models/Rule");
+const RuleVersion = require("../models/RuleVersion");
+const Purchase = require("../models/Purchase");
+const Activity = require("../models/Activity");
 
 // Create new rule (draft)
 exports.createRule = async (req, res) => {
@@ -18,7 +18,7 @@ exports.createRule = async (req, res) => {
       severity,
       ruleContent,
       visibility,
-      pricing
+      pricing,
     } = req.body;
 
     const rule = new Rule({
@@ -32,9 +32,9 @@ exports.createRule = async (req, res) => {
       mitreAttack,
       severity,
       ruleContent,
-      visibility: visibility || 'PRIVATE',
+      visibility: visibility || "PRIVATE",
       pricing,
-      status: 'DRAFT'
+      status: "DRAFT",
     });
 
     await rule.save();
@@ -42,11 +42,11 @@ exports.createRule = async (req, res) => {
     // Create initial version
     const version = new RuleVersion({
       rule: rule._id,
-      version: '1.0.0',
+      version: "1.0.0",
       title,
       description,
       ruleContent,
-      createdBy: req.user._id
+      createdBy: req.user._id,
     });
 
     await version.save();
@@ -54,11 +54,11 @@ exports.createRule = async (req, res) => {
     // Log activity
     await Activity.create({
       user: req.user._id,
-      type: 'RULE_CREATED',
+      type: "RULE_CREATED",
       target: rule._id,
-      targetModel: 'Rule',
+      targetModel: "Rule",
       ipAddress: req.ip,
-      userAgent: req.get('user-agent')
+      userAgent: req.get("user-agent"),
     });
 
     // Update user statistics
@@ -67,14 +67,14 @@ exports.createRule = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Rule created successfully',
-      data: { rule }
+      message: "Rule created successfully",
+      data: { rule },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to create rule',
-      error: error.message
+      message: "Failed to create rule",
+      error: error.message,
     });
   }
 };
@@ -85,7 +85,7 @@ exports.getRules = async (req, res) => {
     const {
       page = 1,
       limit = 20,
-      sort = '-createdAt',
+      sort = "-createdAt",
       queryLanguage,
       vendor,
       category,
@@ -95,24 +95,21 @@ exports.getRules = async (req, res) => {
       search,
       tags,
       mitreTactics,
-      mitreTechniques
+      mitreTechniques,
     } = req.query;
 
     // Build filter
     const filter = {
-      status: 'APPROVED',
-      isActive: true
+      status: "APPROVED",
+      isActive: true,
     };
 
     // Only show public rules unless user is authenticated
     if (!req.user) {
-      filter.visibility = 'PUBLIC';
+      filter.visibility = "PUBLIC";
     } else {
       // Show user's own rules + public rules
-      filter.$or = [
-        { visibility: 'PUBLIC' },
-        { author: req.user._id }
-      ];
+      filter.$or = [{ visibility: "PUBLIC" }, { author: req.user._id }];
     }
 
     // Apply filters
@@ -120,11 +117,14 @@ exports.getRules = async (req, res) => {
     if (vendor) filter.vendor = vendor;
     if (category) filter.category = category;
     if (severity) filter.severity = severity;
-    if (isPaid !== undefined) filter['pricing.isPaid'] = isPaid === 'true';
-    if (minRating) filter['statistics.rating'] = { $gte: parseFloat(minRating) };
-    if (tags) filter.tags = { $in: tags.split(',') };
-    if (mitreTactics) filter['mitreAttack.tactics'] = { $in: mitreTactics.split(',') };
-    if (mitreTechniques) filter['mitreAttack.techniques'] = { $in: mitreTechniques.split(',') };
+    if (isPaid !== undefined) filter["pricing.isPaid"] = isPaid === "true";
+    if (minRating)
+      filter["statistics.rating"] = { $gte: parseFloat(minRating) };
+    if (tags) filter.tags = { $in: tags.split(",") };
+    if (mitreTactics)
+      filter["mitreAttack.tactics"] = { $in: mitreTactics.split(",") };
+    if (mitreTechniques)
+      filter["mitreAttack.techniques"] = { $in: mitreTechniques.split(",") };
 
     // Text search
     if (search) {
@@ -136,7 +136,7 @@ exports.getRules = async (req, res) => {
 
     // Execute query
     const rules = await Rule.find(filter)
-      .populate('author', 'username profile.avatar statistics.rating')
+      .populate("author", "username profile.avatar statistics.rating")
       .sort(sort)
       .limit(parseInt(limit))
       .skip(skip)
@@ -145,24 +145,28 @@ exports.getRules = async (req, res) => {
     const total = await Rule.countDocuments(filter);
 
     // Mask paid rule content for non-purchasers
-    const maskedRules = await Promise.all(rules.map(async (rule) => {
-      if (rule.pricing.isPaid && req.user) {
-        const hasPurchased = await Purchase.exists({
-          user: req.user._id,
-          rule: rule._id,
-          isActive: true
-        });
+    const maskedRules = await Promise.all(
+      rules.map(async (rule) => {
+        if (rule.pricing.isPaid && req.user) {
+          const hasPurchased = await Purchase.exists({
+            user: req.user._id,
+            rule: rule._id,
+            isActive: true,
+          });
 
-        if (!hasPurchased) {
-          // Mask the query content
-          rule.ruleContent.query = rule.ruleContent.query.substring(0, 100) + '... [Purchase to view full content]';
+          if (!hasPurchased) {
+            // Mask the query content
+            rule.ruleContent.query =
+              rule.ruleContent.query.substring(0, 100) +
+              "... [Purchase to view full content]";
+          }
+        } else if (rule.pricing.isPaid && !req.user) {
+          rule.ruleContent.query = "[Login and purchase to view content]";
         }
-      } else if (rule.pricing.isPaid && !req.user) {
-        rule.ruleContent.query = '[Login and purchase to view content]';
-      }
 
-      return rule;
-    }));
+        return rule;
+      }),
+    );
 
     res.json({
       success: true,
@@ -172,15 +176,15 @@ exports.getRules = async (req, res) => {
           currentPage: parseInt(page),
           totalPages: Math.ceil(total / parseInt(limit)),
           totalItems: total,
-          itemsPerPage: parseInt(limit)
-        }
-      }
+          itemsPerPage: parseInt(limit),
+        },
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch rules',
-      error: error.message
+      message: "Failed to fetch rules",
+      error: error.message,
     });
   }
 };
@@ -191,21 +195,24 @@ exports.getRuleById = async (req, res) => {
     const { id } = req.params;
 
     const rule = await Rule.findById(id)
-      .populate('author', 'username profile statistics.rating')
-      .populate('reviews');
+      .populate("author", "username profile statistics.rating")
+      .populate("reviews");
 
     if (!rule) {
       return res.status(404).json({
         success: false,
-        message: 'Rule not found'
+        message: "Rule not found",
       });
     }
 
     // Check visibility permissions
-    if (rule.visibility === 'PRIVATE' && (!req.user || rule.author._id.toString() !== req.user._id.toString())) {
+    if (
+      rule.visibility === "PRIVATE" &&
+      (!req.user || rule.author._id.toString() !== req.user._id.toString())
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: "Access denied",
       });
     }
 
@@ -219,29 +226,31 @@ exports.getRuleById = async (req, res) => {
       hasPurchased = await Purchase.exists({
         user: req.user._id,
         rule: rule._id,
-        isActive: true
+        isActive: true,
       });
 
       // Mask content if not purchased
       if (!hasPurchased) {
-        rule.ruleContent.query = rule.ruleContent.query.substring(0, 150) + '... [Purchase to view full content]';
+        rule.ruleContent.query =
+          rule.ruleContent.query.substring(0, 150) +
+          "... [Purchase to view full content]";
       }
     } else if (rule.pricing.isPaid && !req.user) {
-      rule.ruleContent.query = '[Login and purchase to view content]';
+      rule.ruleContent.query = "[Login and purchase to view content]";
     }
 
     res.json({
       success: true,
       data: {
         rule,
-        hasPurchased
-      }
+        hasPurchased,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch rule',
-      error: error.message
+      message: "Failed to fetch rule",
+      error: error.message,
     });
   }
 };
@@ -257,15 +266,18 @@ exports.updateRule = async (req, res) => {
     if (!rule) {
       return res.status(404).json({
         success: false,
-        message: 'Rule not found'
+        message: "Rule not found",
       });
     }
 
     // Check ownership or admin permission
-    if (rule.author.toString() !== req.user._id.toString() && !req.user.hasPermission('rule:update:any')) {
+    if (
+      rule.author.toString() !== req.user._id.toString() &&
+      !req.user.hasPermission("rule:update:any")
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: "Access denied",
       });
     }
 
@@ -280,23 +292,23 @@ exports.updateRule = async (req, res) => {
     // Log activity
     await Activity.create({
       user: req.user._id,
-      type: 'RULE_UPDATED',
+      type: "RULE_UPDATED",
       target: rule._id,
-      targetModel: 'Rule',
+      targetModel: "Rule",
       ipAddress: req.ip,
-      userAgent: req.get('user-agent')
+      userAgent: req.get("user-agent"),
     });
 
     res.json({
       success: true,
-      message: 'Rule updated successfully',
-      data: { rule }
+      message: "Rule updated successfully",
+      data: { rule },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to update rule',
-      error: error.message
+      message: "Failed to update rule",
+      error: error.message,
     });
   }
 };
@@ -311,37 +323,37 @@ exports.publishRule = async (req, res) => {
     if (!rule) {
       return res.status(404).json({
         success: false,
-        message: 'Rule not found'
+        message: "Rule not found",
       });
     }
 
     if (rule.author.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: "Access denied",
       });
     }
 
-    if (rule.status !== 'DRAFT') {
+    if (rule.status !== "DRAFT") {
       return res.status(400).json({
         success: false,
-        message: 'Only draft rules can be published'
+        message: "Only draft rules can be published",
       });
     }
 
     if (!req.user.emailVerified) {
       return res.status(403).json({
         success: false,
-        message: 'Email verification required to publish rules'
+        message: "Email verification required to publish rules",
       });
     }
 
     // Change status based on user role
-    if (req.user.role === 'VERIFIED_CONTRIBUTOR' || req.user.role === 'ADMIN') {
-      rule.status = 'APPROVED';
+    if (req.user.role === "VERIFIED_CONTRIBUTOR" || req.user.role === "ADMIN") {
+      rule.status = "APPROVED";
       rule.publishedAt = new Date();
     } else {
-      rule.status = 'PENDING_REVIEW';
+      rule.status = "PENDING_REVIEW";
     }
 
     await rule.save();
@@ -349,23 +361,26 @@ exports.publishRule = async (req, res) => {
     // Log activity
     await Activity.create({
       user: req.user._id,
-      type: 'RULE_PUBLISHED',
+      type: "RULE_PUBLISHED",
       target: rule._id,
-      targetModel: 'Rule',
+      targetModel: "Rule",
       ipAddress: req.ip,
-      userAgent: req.get('user-agent')
+      userAgent: req.get("user-agent"),
     });
 
     res.json({
       success: true,
-      message: rule.status === 'APPROVED' ? 'Rule published successfully' : 'Rule submitted for review',
-      data: { rule }
+      message:
+        rule.status === "APPROVED"
+          ? "Rule published successfully"
+          : "Rule submitted for review",
+      data: { rule },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to publish rule',
-      error: error.message
+      message: "Failed to publish rule",
+      error: error.message,
     });
   }
 };
@@ -380,31 +395,34 @@ exports.deleteRule = async (req, res) => {
     if (!rule) {
       return res.status(404).json({
         success: false,
-        message: 'Rule not found'
+        message: "Rule not found",
       });
     }
 
-    if (rule.author.toString() !== req.user._id.toString() && !req.user.hasPermission('rule:delete:any')) {
+    if (
+      rule.author.toString() !== req.user._id.toString() &&
+      !req.user.hasPermission("rule:delete:any")
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied'
+        message: "Access denied",
       });
     }
 
     // Soft delete
     rule.isActive = false;
-    rule.status = 'ARCHIVED';
+    rule.status = "ARCHIVED";
     await rule.save();
 
     res.json({
       success: true,
-      message: 'Rule deleted successfully'
+      message: "Rule deleted successfully",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to delete rule',
-      error: error.message
+      message: "Failed to delete rule",
+      error: error.message,
     });
   }
 };
@@ -419,14 +437,14 @@ exports.forkRule = async (req, res) => {
     if (!originalRule) {
       return res.status(404).json({
         success: false,
-        message: 'Rule not found'
+        message: "Rule not found",
       });
     }
 
-    if (originalRule.visibility !== 'PUBLIC') {
+    if (originalRule.visibility !== "PUBLIC") {
       return res.status(403).json({
         success: false,
-        message: 'Cannot fork private rules'
+        message: "Cannot fork private rules",
       });
     }
 
@@ -443,8 +461,8 @@ exports.forkRule = async (req, res) => {
       severity: originalRule.severity,
       ruleContent: originalRule.ruleContent,
       forkedFrom: originalRule._id,
-      status: 'DRAFT',
-      visibility: 'PRIVATE'
+      status: "DRAFT",
+      visibility: "PRIVATE",
     });
 
     await forkedRule.save();
@@ -456,24 +474,24 @@ exports.forkRule = async (req, res) => {
     // Log activity
     await Activity.create({
       user: req.user._id,
-      type: 'RULE_FORKED',
+      type: "RULE_FORKED",
       target: forkedRule._id,
-      targetModel: 'Rule',
+      targetModel: "Rule",
       metadata: { originalRule: originalRule._id },
       ipAddress: req.ip,
-      userAgent: req.get('user-agent')
+      userAgent: req.get("user-agent"),
     });
 
     res.status(201).json({
       success: true,
-      message: 'Rule forked successfully',
-      data: { rule: forkedRule }
+      message: "Rule forked successfully",
+      data: { rule: forkedRule },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Failed to fork rule',
-      error: error.message
+      message: "Failed to fork rule",
+      error: error.message,
     });
   }
 };

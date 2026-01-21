@@ -1,101 +1,112 @@
 // src/routes/transactionRoutes.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { authenticate, hasRole } = require('../middleware/auth');
+const { body, validationResult } = require("express-validator");
+const transactionController = require("../controllers/transactionController");
+const { authenticate, hasRole } = require("../middleware/auth");
 
-/**
- * Transaction routes - Payment integration placeholder
- * 
- * TODO: Implement payment gateway integration (Stripe/PayPal)
- * - Purchase rule
- * - View transaction history
- * - Generate invoices
- * - Refund requests
- * - Seller earnings dashboard
- */
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: "Validation failed",
+      errors: errors.array(),
+    });
+  }
+  next();
+};
 
 /**
  * @route   GET /api/v1/transactions
  * @desc    Get all transactions (admin only)
  * @access  Private (Admin)
- * @status  NOT IMPLEMENTED
  */
-router.get('/', 
-  authenticate, 
-  hasRole('ADMIN'),
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Transaction API not implemented yet',
-      note: 'Payment integration will be added in future releases'
-    });
-  }
+router.get(
+  "/",
+  authenticate,
+  hasRole("ADMIN"),
+  transactionController.getAllTransactions,
 );
 
 /**
  * @route   GET /api/v1/transactions/my
  * @desc    Get current user's transactions
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.get('/my', 
+router.get("/my", authenticate, transactionController.getMyTransactions);
+
+/**
+ * @route   GET /api/v1/transactions/stats/platform
+ * @desc    Get platform revenue statistics (admin only)
+ * @access  Private (Admin)
+ */
+router.get(
+  "/stats/platform",
   authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Transaction API not implemented yet',
-      note: 'Payment integration will be added in future releases'
-    });
-  }
+  hasRole("ADMIN"),
+  transactionController.getPlatformStats,
+);
+
+/**
+ * @route   GET /api/v1/transactions/earnings/seller
+ * @desc    Get seller earnings
+ * @access  Private
+ */
+router.get(
+  "/earnings/seller",
+  authenticate,
+  transactionController.getSellerEarnings,
 );
 
 /**
  * @route   POST /api/v1/transactions/purchase
  * @desc    Purchase a paid rule
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.post('/purchase',
+router.post(
+  "/purchase",
   authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Payment integration not implemented yet',
-      note: 'Stripe/PayPal integration will be added soon'
-    });
-  }
+  [
+    body("ruleId").isMongoId().withMessage("Valid rule ID is required"),
+    body("paymentMethodId").optional().trim(),
+  ],
+  validate,
+  transactionController.purchaseRule,
 );
 
 /**
  * @route   GET /api/v1/transactions/:id
  * @desc    Get single transaction
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.get('/:id',
-  authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Transaction API not implemented yet'
-    });
-  }
-);
+router.get("/:id", authenticate, transactionController.getTransaction);
 
 /**
  * @route   POST /api/v1/transactions/:id/refund
  * @desc    Request refund
  * @access  Private
- * @status  NOT IMPLEMENTED
  */
-router.post('/:id/refund',
+router.post(
+  "/:id/refund",
   authenticate,
-  (req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Refund API not implemented yet'
-    });
-  }
+  [body("reason").trim().notEmpty().withMessage("Refund reason is required")],
+  validate,
+  transactionController.requestRefund,
+);
+
+/**
+ * @route   POST /api/v1/transactions/:id/refund/process
+ * @desc    Process refund (admin only)
+ * @access  Private (Admin)
+ */
+router.post(
+  "/:id/refund/process",
+  authenticate,
+  hasRole("ADMIN"),
+  [body("approved").isBoolean().withMessage("approved must be boolean")],
+  validate,
+  transactionController.processRefund,
 );
 
 module.exports = router;

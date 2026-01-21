@@ -1,5 +1,5 @@
 // src/utils/email.js
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 // Create transporter
 let transporter = null;
@@ -12,22 +12,22 @@ if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
     secure: false,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
-    }
+      pass: process.env.EMAIL_PASSWORD,
+    },
   });
 
   // Verify connection
   transporter.verify((error, success) => {
     if (error) {
-      console.warn('⚠ Email service not available:', error.message);
-      console.warn('⚠ Email features will be disabled');
+      console.warn("⚠ Email service not available:", error.message);
+      console.warn("⚠ Email features will be disabled");
       transporter = null;
     } else {
-      console.log('✓ Email server ready');
+      console.log("✓ Email server ready");
     }
   });
 } else {
-  console.warn('⚠ Email credentials not configured - email features disabled');
+  console.warn("⚠ Email credentials not configured - email features disabled");
 }
 
 // Helper function to check if email is enabled
@@ -38,16 +38,16 @@ const isEmailEnabled = () => {
 // Send verification email
 exports.sendVerificationEmail = async (email, token) => {
   if (!isEmailEnabled()) {
-    console.warn('⚠ Email disabled - verification email not sent to:', email);
+    console.warn("⚠ Email disabled - verification email not sent to:", email);
     return;
   }
-  
+
   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
-  
+
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'Verify Your Email - Security Rules Platform',
+    subject: "Verify Your Email - Security Rules Platform",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563eb;">Welcome to Security Rules Platform!</h2>
@@ -65,14 +65,14 @@ exports.sendVerificationEmail = async (email, token) => {
           This link will expire in 24 hours. If you didn't create an account, please ignore this email.
         </p>
       </div>
-    `
+    `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log('Verification email sent to:', email);
+    console.log("Verification email sent to:", email);
   } catch (error) {
-    console.error('Failed to send verification email:', error.message);
+    console.error("Failed to send verification email:", error.message);
     // Don't throw error - email is not critical
   }
 };
@@ -80,16 +80,16 @@ exports.sendVerificationEmail = async (email, token) => {
 // Send password reset email
 exports.sendPasswordResetEmail = async (email, token) => {
   if (!isEmailEnabled()) {
-    console.warn('⚠ Email disabled - password reset email not sent to:', email);
+    console.warn("⚠ Email disabled - password reset email not sent to:", email);
     return;
   }
-  
+
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
-  
+
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'Password Reset Request - Security Rules Platform',
+    subject: "Password Reset Request - Security Rules Platform",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563eb;">Password Reset Request</h2>
@@ -107,14 +107,14 @@ exports.sendPasswordResetEmail = async (email, token) => {
           This link will expire in 1 hour. If you didn't request a password reset, please ignore this email.
         </p>
       </div>
-    `
+    `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log('Password reset email sent to:', email);
+    console.log("Password reset email sent to:", email);
   } catch (error) {
-    console.error('Failed to send password reset email:', error.message);
+    console.error("Failed to send password reset email:", error.message);
   }
 };
 
@@ -123,7 +123,7 @@ exports.sendRuleApprovedEmail = async (email, username, ruleTitle) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'Your Rule Has Been Approved! - Security Rules Platform',
+    subject: "Your Rule Has Been Approved! - Security Rules Platform",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #16a34a;">🎉 Rule Approved!</h2>
@@ -138,13 +138,13 @@ exports.sendRuleApprovedEmail = async (email, username, ruleTitle) => {
         </div>
         <p>Thank you for contributing to the security community!</p>
       </div>
-    `
+    `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Failed to send approval email:', error);
+    console.error("Failed to send approval email:", error);
   }
 };
 
@@ -153,7 +153,7 @@ exports.sendRuleRejectedEmail = async (email, username, ruleTitle, reason) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'Rule Review Update - Security Rules Platform',
+    subject: "Rule Review Update - Security Rules Platform",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #dc2626;">Rule Review Update</h2>
@@ -172,22 +172,27 @@ exports.sendRuleRejectedEmail = async (email, username, ruleTitle, reason) => {
           </a>
         </div>
       </div>
-    `
+    `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Failed to send rejection email:', error);
+    console.error("Failed to send rejection email:", error);
   }
 };
 
 // Send purchase confirmation
-exports.sendPurchaseConfirmationEmail = async (email, username, ruleTitle, amount) => {
+exports.sendPurchaseConfirmationEmail = async (
+  email,
+  username,
+  ruleTitle,
+  amount,
+) => {
   const mailOptions = {
     from: process.env.EMAIL_FROM,
     to: email,
-    subject: 'Purchase Confirmation - Security Rules Platform',
+    subject: "Purchase Confirmation - Security Rules Platform",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563eb;">Purchase Successful!</h2>
@@ -208,12 +213,12 @@ exports.sendPurchaseConfirmationEmail = async (email, username, ruleTitle, amoun
           Receipt and download links are available in your account dashboard.
         </p>
       </div>
-    `
+    `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
   } catch (error) {
-    console.error('Failed to send purchase confirmation:', error);
+    console.error("Failed to send purchase confirmation:", error);
   }
 };
