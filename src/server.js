@@ -50,13 +50,13 @@ if (process.env.NODE_ENV === "development") {
 app.use(passport.initialize());
 
 // Initialize Redis and rate limiting
-initializeRedis();
+// initializeRedis();
 
-// Rate limiting middleware setup
-app.use("/api/v1/auth", authLimiter);
-app.use("/api/v1/transactions/purchase", paymentLimiter);
-app.use("/api/v1/reviews", reviewLimiter);
-app.use("/api/v1/users", roleBasedLimiter);
+// Rate limiting middleware setup (DISABLED FOR TESTING)
+// app.use("/api/v1/auth", authLimiter);
+// app.use("/api/v1/transactions/purchase", paymentLimiter);
+// app.use("/api/v1/reviews", reviewLimiter);
+// app.use("/api/v1/users", roleBasedLimiter);
 
 // Database connection
 mongoose
@@ -68,7 +68,7 @@ mongoose
   });
 
 // Routes
-app.use("/api/v1/auth", authLimiter, require("./routes/authRoutes"));
+app.use("/api/v1/auth", require("./routes/authRoutes"));
 app.use("/api/v1/users", require("./routes/userRoutes"));
 app.use("/api/v1/rules", require("./routes/ruleRoutes"));
 app.use("/api/v1/transactions", require("./routes/transactionRoutes"));

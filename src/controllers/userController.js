@@ -96,7 +96,7 @@ exports.updatePassword = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id).select("+password");
 
   // Verify current password
-  const isPasswordValid = await user.validatePassword(currentPassword);
+  const isPasswordValid = await user.comparePassword(currentPassword);
   if (!isPasswordValid) {
     throw errors.unauthorized("Current password is incorrect");
   }

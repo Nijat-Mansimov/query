@@ -496,4 +496,65 @@ exports.forkRule = async (req, res) => {
   }
 };
 
+// Get user's own rules (all statuses)
+exports.getMyRules = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      status = "all",
+      sort = "-createdAt",
+      search,
+    } = req.query;
+
+    const filter = {
+      author: req.user._id,
+    };
+
+    // Filter by status if specified
+    if (status && status !== "all") {
+      filter.status = status.toUpperCase();
+    }
+
+    // Search by title or description
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Fetch rules
+    const rules = await Rule.find(filter)
+      .sort(sort)
+      .limit(parseInt(limit))
+      .skip(skip)
+      .lean();
+
+    const total = await Rule.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: {
+        rules,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(total / parseInt(limit)),
+          totalItems: total,
+          itemsPerPage: parseInt(limit),
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch your rules",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = exports;
