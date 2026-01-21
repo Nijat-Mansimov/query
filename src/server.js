@@ -1,17 +1,28 @@
 // src/server.js
 require("dotenv").config();
 const express = require("express");
+const http = require("http");
 const mongoose = require("mongoose");
 const helmet = require("helmet");
 const cors = require("cors");
 const morgan = require("morgan");
 const compression = require("compression");
 const mongoSanitize = require("express-mongo-sanitize");
-const rateLimit = require("express-rate-limit");
 const passport = require("./config/passport");
 const { errorHandler, notFound } = require("./middleware/errorHandler");
+const SocketService = require("./services/socketService");
+const {
+  initializeRedis,
+  authLimiter,
+  userActionLimiter,
+  paymentLimiter,
+  roleBasedLimiter,
+  downloadLimiter,
+  reviewLimiter,
+} = require("./middleware/rateLimiter");
 
 const app = express();
+const server = http.createServer(app);
 
 // Security middleware
 app.use(helmet());
@@ -38,21 +49,14 @@ if (process.env.NODE_ENV === "development") {
 // Initialize Passport
 app.use(passport.initialize());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: "Too many requests from this IP, please try again later.",
-});
-app.use("/api/", limiter);
+// Initialize Redis and rate limiting
+initializeRedis();
 
-// Strict rate limiting for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  skipSuccessfulRequests: true,
-  message: "Too many authentication attempts, please try again later.",
-});
+// Rate limiting middleware setup
+app.use("/api/v1/auth", authLimiter);
+app.use("/api/v1/transactions/purchase", paymentLimiter);
+app.use("/api/v1/reviews", reviewLimiter);
+app.use("/api/v1/users", roleBasedLimiter);
 
 // Database connection
 mongoose
@@ -69,6 +73,13 @@ app.use("/api/v1/users", require("./routes/userRoutes"));
 app.use("/api/v1/rules", require("./routes/ruleRoutes"));
 app.use("/api/v1/transactions", require("./routes/transactionRoutes"));
 app.use("/api/v1/reviews", require("./routes/reviewRoutes"));
+app.use("/api/v1/admin", require("./routes/adminRoutes"));
+
+// Initialize WebSocket service for real-time notifications
+const socketService = new SocketService(server);
+
+// Make socket service available globally
+global.socketService = socketService;
 
 // Health check
 app.get("/health", (req, res) => {
@@ -93,8 +104,19 @@ app.get("/api/v1", (req, res) => {
       rules: "/api/v1/rules",
       transactions: "/api/v1/transactions",
       reviews: "/api/v1/reviews",
+      admin: "/api/v1/admin",
     },
     documentation: "/api/v1/docs",
+    websocket: "Socket.IO enabled for real-time notifications",
+  });
+});
+
+// WebSocket events endpoint
+app.get("/api/v1/websocket/status", (req, res) => {
+  res.json({
+    success: true,
+    message: "WebSocket server is running",
+    onlineUsers: socketService.getOnlineUsersCount(),
   });
 });
 
@@ -106,13 +128,15 @@ app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`
 ╔════════════════════════════════════════════════╗
 ║   Security Rules Platform API                  ║
 ║   Server running on port ${PORT}                  ║
 ║   Environment: ${process.env.NODE_ENV || "development"}                    ║
 ║   Database: Connected                          ║
+║   WebSocket: Enabled (Socket.IO)               ║
+║   Rate Limiting: Active                        ║
 ╚════════════════════════════════════════════════╝
   `);
 });
@@ -121,7 +145,10 @@ app.listen(PORT, () => {
 process.on("SIGTERM", async () => {
   console.log("SIGTERM signal received: closing HTTP server");
   await mongoose.connection.close();
-  process.exit(0);
+  server.close(() => {
+    console.log("HTTP server closed");
+    process.exit(0);
+  });
 });
 
 module.exports = app;
