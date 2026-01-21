@@ -109,21 +109,34 @@ router.get(
 );
 
 /**
- * @route   GET /api/v1/users/:username
- * @desc    Get public user profile
- * @access  Public
+ * @route   GET /api/v1/users/me/purchases
+ * @desc    Get user's purchased rules
+ * @access  Private
  */
-router.get("/:username", userController.getUserProfile);
+router.get("/me/purchases", authenticate, async (req, res) => {
+  try {
+    const Purchase = require("../models/Purchase");
 
-/**
- * @route   GET /api/v1/users/:username/rules
- * @desc    Get user's created rules
- * @access  Public
- */
-router.get(
-  "/:username/rules",
-  userController.getUserRules,
-);
+    const purchases = await Purchase.find({
+      user: req.user._id,
+      isActive: true,
+    })
+      .populate("rule", "title description stats")
+      .sort("-createdAt")
+      .lean();
+
+    res.json({
+      success: true,
+      data: { purchases },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch purchases",
+      error: error.message,
+    });
+  }
+});
 
 /**
  * @route   GET /api/v1/users/activity
@@ -134,6 +147,17 @@ router.get(
   "/activity",
   authenticate,
   userController.getUserActivity,
+);
+
+/**
+ * @route   GET /api/v1/users/earnings
+ * @desc    Get user's earnings (seller view)
+ * @access  Private
+ */
+router.get(
+  "/earnings",
+  authenticate,
+  userController.getEarnings,
 );
 
 /**
@@ -179,47 +203,6 @@ router.delete(
   authenticate,
   userController.deleteNotification,
 );
-
-/**
- * @route   GET /api/v1/users/earnings
- * @desc    Get user's earnings (seller view)
- * @access  Private
- */
-router.get(
-  "/earnings",
-  authenticate,
-  userController.getEarnings,
-);
-
-/**
- * @route   GET /api/v1/users/me/purchases
- * @desc    Get user's purchased rules
- * @access  Private
- */
-router.get("/me/purchases", authenticate, async (req, res) => {
-  try {
-    const Purchase = require("../models/Purchase");
-
-    const purchases = await Purchase.find({
-      user: req.user._id,
-      isActive: true,
-    })
-      .populate("rule", "title description stats")
-      .sort("-createdAt")
-      .lean();
-
-    res.json({
-      success: true,
-      data: { purchases },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch purchases",
-      error: error.message,
-    });
-  }
-});
 
 /**
  * @route   POST /api/v1/users/2fa/setup
@@ -378,6 +361,23 @@ router.post(
       });
     }
   },
+);
+
+/**
+ * @route   GET /api/v1/users/:username
+ * @desc    Get public user profile
+ * @access  Public
+ */
+router.get("/:username", userController.getUserProfile);
+
+/**
+ * @route   GET /api/v1/users/:username/rules
+ * @desc    Get user's created rules
+ * @access  Public
+ */
+router.get(
+  "/:username/rules",
+  userController.getUserRules,
 );
 
 module.exports = router;
